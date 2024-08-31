@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Usage Monitoring</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container">
+        <h2>Select Date to View App Usage</h2>
+        <form method="POST">
+            {% csrf_token %}
+            <label for="date">Select Date:</label>
+            <input type="date" id="date" name="date" required>
+            <button type="submit">Submit</button>
+        </form>
+        
+        {% if duration_per_app %}
+            <h2>App Usage Data for {{ selected_date }}</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>App</th>
+                        <th>Total Duration (minutes)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in duration_per_app %}
+                    <tr>
+                        <td>{{ row.App }}</td>
+                        <td>{{ row.Duration_minutes }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+    
+</body>
+</html>
