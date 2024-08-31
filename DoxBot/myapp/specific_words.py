@@ -1,0 +1,1 @@
+SPECIFIC_WORDS = ['incognito', 'nude', 'fuck', 'sex', 'porn', 'hentai', 'pussy', 'boobs', 'Incognito', 'naked', 'busty', 'blowjob'] 

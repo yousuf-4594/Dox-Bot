@@ -22,18 +22,12 @@ import json
 import pandas as pd
 import datetime
 from django.shortcuts import render
-
-# logger = logging.getLogger(__name__)
-
+from myapp.specific_words import SPECIFIC_WORDS
 
 
 cred = credentials.Certificate('serviceAccountKey.json')
 initialize_app(cred)
 db = firestore.client()
-
-SPECIFIC_WORDS = ['incognito', 'nude', 'fuck', 'sex', 'porn', 'hentai', 'pussy', 'boobs', 'Incognito', 'naked', 'busty', 'blowjob'] 
-
-a = 100
 
 
 RECIPIENT_EMAILS = [

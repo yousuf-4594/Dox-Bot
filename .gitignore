@@ -1,2 +1,4 @@
 /venv
 /DoxBot/serviceAccountKey.json
+/specific_words.py
+/settings.py
