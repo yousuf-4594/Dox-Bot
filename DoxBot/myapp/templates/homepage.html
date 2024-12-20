@@ -17,19 +17,43 @@
         h1 {
             color: #333;
         }
+        .device-list {
+            list-style:none;
+            padding: 0;
+            margin-top: 30px;
+        }
+
+        .device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;            
+            padding: 15px;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+        }
     </style>
 </head>
 <body>
     {% include 'navbar.html' %}
     <!-- Main Content -->
     <div class="container">
-        <h1>Welcome to the Homepage</h1>
-        <ul>
-            <li><a href="{% url 'check_firebase_and_send_email' %}">Run Security Checks</a></li>
-            <li><a href="{% url 'check_date' %}">Check Server Date</a></li>
-            <li><a href="{% url 'get_todays_data' %}">Get Today's Data</a></li>
-            <li><a href="{% url 'app_usage_monitoring' %}">Get App Usage Monitoring Time</a></li>
+        <div>
+            <h2>Sources Status Table</h2>
+            <span>A table that tracks the status of NameNodes to check if they are currently alive.</span>
+        </div>
+        <ul class="device-list">
+            {% for device, info in devices.items %}
+            <li class="device-item">
+                <span style="font-weight: bolder;">{{ info.device_name }}</span>
+                <div>
+                    <span>{{ info.last_seen }}</span>
+                    <span style="background-color: rgba(159, 181, 255, 0.222); padding: 5px; border-radius: 3px">{{ info.relative_time }} ago</span>
+                </div>
+            </li>
+            {% endfor %}
         </ul>
+        
     </div>
 </body>
 </html>

@@ -23,7 +23,7 @@ import pandas as pd
 import datetime
 from django.shortcuts import render
 from myapp.specific_words import SPECIFIC_WORDS
-
+import pytz
 
 cred = credentials.Certificate('serviceAccountKey.json')
 initialize_app(cred)
@@ -35,10 +35,36 @@ RECIPIENT_EMAILS = [
     "hibbanahmed0@gmail.com",
 ]
 
+def convert_to_pakistan_time(timestamp):
+    print(timestamp)
+    timestamp_ms = int(timestamp)
+    timestamp_s = timestamp_ms / 1000
+    utc_time = datetime.datetime.utcfromtimestamp(timestamp_s)
+    utc_time = utc_time.replace(tzinfo=pytz.UTC)
+    pakistan_tz = pytz.timezone('Asia/Karachi')
+    pakistan_time = utc_time.astimezone(pakistan_tz)    
+    formatted_time = pakistan_time.strftime("%d-%m-%Y %I:%M:%S %p")
+    return formatted_time
+
+def convert_timestamp(timestamp):
+    timestamp_ms = int(timestamp)
+    timestamp_s = timestamp_ms / 1000
+    timestamp_dt = datetime.datetime.utcfromtimestamp(timestamp_s)
+    current_time = datetime.datetime.utcnow()
+    time_diff = abs(current_time - timestamp_dt)
+    total_seconds = int(time_diff.total_seconds())
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    time_diff_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return time_diff_str
+
 def homepage(request):
     current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    devices = collect_device_info(request)
     params = {
         'current_date': current_date,
+        'devices'     : devices,
     }
 
     return render(request, 'homepage.html', params)
@@ -215,3 +241,23 @@ def get_todays_data(request):
     }
 
     return render(request, 'todays_data.html', context)
+
+def collect_device_info(request):
+    collections = db.collections()
+    result = {}
+
+    for collection in collections:
+        if collection.id in ['analytics', 'monitoring']:
+            continue
+
+        collection_id = collection.id
+        alive_ref = collection.document('alive')
+        doc = alive_ref.get()
+        if doc.exists:
+            doc_data = doc.to_dict()
+            result[collection_id] = {
+                'device_name': collection.id,
+                'relative_time': convert_timestamp(doc_data.get('last_seen')),
+                'last_seen': convert_to_pakistan_time(doc_data.get('last_seen'))
+            }
+    return result

@@ -54,20 +54,17 @@
     </style>
 </head>
 <body>
-    <!-- Navbar -->
     <div class="navbar">
-        <!-- Left section (Logo) -->
         <div>
             <a href="{% url 'homepage' %}" class="navbar-logo">DoxBot</a>
             <span class="date">{{ current_date }}</span>
         </div>
-        <!-- Right section (Links) -->
         <div class="navbar-links">
-            <a href="{% url 'check_firebase_and_send_email' %}">Run Security Checks</a>
-            <a href="{% url 'check_date' %}">Check Server Date</a>
+            <a href="{% url 'check_firebase_and_send_email' %}">Audit</a>
+            <a href="{% url 'check_date' %}">Notifications</a>
             <a href="{% url 'get_todays_data' %}">Logs</a>
-            <a href="{% url 'app_usage_monitoring' %}">Activity</a>
-            
+            <a href="{% url 'app_usage_monitoring' %}">Activity</a>            
+            <a href="{% url 'app_usage_monitoring' %}">Join</a>  
         </div>
     </div>
     <div><h1></h1></div>
