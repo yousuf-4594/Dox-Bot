@@ -17,6 +17,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from email.mime.image import MIMEImage
 import logging
+from django.http import FileResponse
 
 import json
 import pandas as pd
@@ -187,6 +188,9 @@ def view_analytics(request):
     return render(request, 'logs.html', context)
 
 
+def join(request):
+    apk_path = 'Asset/static-app.apk'
+    return FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='static-app.apk')
 
 def app_usage_monitoring(request):
     if request.method == 'POST':

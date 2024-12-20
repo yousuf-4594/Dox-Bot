@@ -9,7 +9,7 @@ urlpatterns = [
     path('check-date/', check_date, name='check_date'),
     path('logs/', view_analytics, name='logs'),
     path('app-usage-monitoring/', app_usage_monitoring, name='app_usage_monitoring'),
-
+    path('join/', join, name='join'),
     path('notifications/', view_notifications, name='notifications'),
 
 ]
