@@ -69,6 +69,54 @@ def homepage(request):
 
     return render(request, 'homepage.html', params)
 
+def view_notifications(request):
+    collections = db.collections()
+    collection_names = [
+        collection.id for collection in collections 
+        if collection.id not in ['analytics', 'monitoring']
+    ]
+
+    notifications_data = {}
+    selected_collection = None
+    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')  # Default to today
+
+    if request.method == 'POST':
+        selected_collection = request.POST.get('collection')
+        posted_date = request.POST.get('date')
+        if posted_date:
+            selected_date = posted_date
+
+        if selected_collection:
+            # Get specific date collection from notifications
+            notifications_ref = db.collection(selected_collection).document('notifications').collection(selected_date)
+            
+            date_logs = []
+            # Get all documents (timestamps) in this date
+            timestamp_docs = notifications_ref.stream()
+            
+            for doc in timestamp_docs:
+                log_data = doc.to_dict()
+                readable_time = convert_to_pakistan_time(doc.id)
+                date_logs.append({
+                    'timestamp': readable_time,
+                    'data': log_data
+                })
+            
+            # Sort logs by timestamp (newest first)
+            date_logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            if date_logs:  # Only add to notifications_data if there are logs
+                notifications_data[selected_date] = date_logs
+
+    context = {
+        'collection_names': collection_names,
+        'notifications_data': notifications_data,
+        'selected_collection': selected_collection,
+        'selected_date': selected_date
+    }
+
+    return render(request, 'notifications.html', context)
+
+
 def app_usage_monitoring(request):
     if request.method == 'POST':
         selected_date = request.POST.get('date')

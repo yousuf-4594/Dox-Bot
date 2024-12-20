@@ -10,4 +10,6 @@ urlpatterns = [
     path('get-todays-data/', get_todays_data, name='get_todays_data'),
     path('app-usage-monitoring/', app_usage_monitoring, name='app_usage_monitoring'),
 
+    path('notifications/', view_notifications, name='notifications'),
+
 ]

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Date</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 100px;
+        }
+        h1 {
+            color: #333;
+        }
+        .form-group {
+        margin-bottom: 1rem;
+        }
+        .date-header {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .log-entry {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .timestamp {
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .log-data {
+            padding-left: 10px;
+        }
+        .log-item {
+            margin-bottom: 5px;
+        }
+        .logs-container {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container">
+        <h2>View Notifications</h2>
+    
+        <!-- Collection Selection Form -->
+        <form method="POST" class="mb-4">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="collection">Select Device:</label>
+                <select name="collection" id="collection" class="form-control" style="width: 300px;">
+                    <option value="">-- Select Device --</option>
+                    {% for collection in collection_names %}
+                        <option value="{{ collection }}" {% if selected_collection == collection %}selected{% endif %}>
+                            {{ collection }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="date">Select Date:</label>
+                <input 
+                    type="date" 
+                    id="date" 
+                    name="date" 
+                    class="form-control" 
+                    style="width: 300px;"
+                    value="{{ selected_date }}"
+                    max="{{ selected_date }}"  <!-- Prevents selecting future dates -->
+                >
+            </div>
+            <button type="submit" class="btn btn-primary mt-2">View Notifications</button>
+        </form>
+
+        <!-- Display Notifications -->
+        {% if notifications_data %}
+        <div class="notifications-container">
+            <h3>Notifications for {{ selected_collection }} on {{ selected_date }}</h3>
+            {% for date, logs in notifications_data.items %}
+                <div class="date-section mb-4">
+                    <div class="logs-container">
+                        {% for log in logs %}
+                            <div class="log-entry">
+                                <div class="timestamp">🕒 {{ log.timestamp }}</div>
+                                <div class="log-data">
+                                    {% for key, value in log.data.items %}
+                                        <div class="log-item">
+                                            <strong>{{ key }}:</strong> {{ value }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+        {% if selected_collection and not notifications_data %}
+            <div class="alert alert-info">
+                No notifications found for this device.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
