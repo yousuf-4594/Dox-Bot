@@ -54,6 +54,35 @@
         .logs-container {
             margin-left: 20px;
         }
+        .notification-item {
+            border-left: 3px solid #007bff;
+            margin: 10px 0;
+            padding: 8px 15px;
+            background-color: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .notification-time {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        
+        .app-name {
+            font-size: 0.8em;
+            color: #28a745;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        
+        .notification-title {
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .notification-text {
+            color: #495057;
+        }
     </style>
 </head>
 <body>
@@ -85,7 +114,6 @@
                     class="form-control" 
                     style="width: 300px;"
                     value="{{ selected_date }}"
-                    max="{{ selected_date }}"  <!-- Prevents selecting future dates -->
                 >
             </div>
             <button type="submit" class="btn btn-primary mt-2">View Notifications</button>
@@ -102,9 +130,16 @@
                             <div class="log-entry">
                                 <div class="timestamp">🕒 {{ log.timestamp }}</div>
                                 <div class="log-data">
-                                    {% for key, value in log.data.items %}
-                                        <div class="log-item">
-                                            <strong>{{ key }}:</strong> {{ value }}
+                                    {% for notification in log.notifications %}
+                                        <div class="notification-item">
+                                            <div class="notification-time">{{ notification.timestamp }}</div>
+                                            <div class="notification-content">
+                                                <div class="app-name">{{ notification.package }}</div>
+                                                <div class="notification-title">{{ notification.title }}</div>
+                                                {% if notification.text != "No text" %}
+                                                    <div class="notification-text">{{ notification.text }}</div>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                     {% endfor %}
                                 </div>
@@ -114,7 +149,7 @@
                 </div>
             {% endfor %}
         </div>
-    {% endif %}
+        {% endif %}
 
         {% if selected_collection and not notifications_data %}
             <div class="alert alert-info">

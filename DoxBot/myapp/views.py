@@ -69,6 +69,23 @@ def homepage(request):
 
     return render(request, 'homepage.html', params)
 
+def parse_notification_log(log_string):
+    """Parse the notification log string into structured data."""
+    pattern = r'\(([\d\-: ]+)\|NOTIFICATION\) Package: ([^\s]+) Title: ([\s\S]*?) Text: ([\s\S]*?)(?=\([\d\-: ]+\|NOTIFICATION\)|$)'
+    notifications = []
+    
+    matches = re.finditer(pattern, log_string)
+    for match in matches:
+        timestamp, package, title, text = match.groups()
+        notifications.append({
+            'timestamp': timestamp.strip(),
+            'package': package.strip(),
+            'title': title.strip(),
+            'text': text.strip()
+        })
+    
+    return notifications
+
 def view_notifications(request):
     collections = db.collections()
     collection_names = [
@@ -87,24 +104,27 @@ def view_notifications(request):
             selected_date = posted_date
 
         if selected_collection:
-            # Get specific date collection from notifications
             notifications_ref = db.collection(selected_collection).document('notifications').collection(selected_date)
-            
             date_logs = []
-            # Get all documents (timestamps) in this date
             timestamp_docs = notifications_ref.stream()
             
             for doc in timestamp_docs:
                 log_data = doc.to_dict()
                 readable_time = convert_to_pakistan_time(doc.id)
-                date_logs.append({
-                    'timestamp': readable_time,
-                    'data': log_data
-                })
+                print(log_data['log'])
+                
+                # Parse the log string into structured data
+                if 'log' in log_data:
+                    parsed_notifications = parse_notification_log(log_data['log'])
+                    print(parsed_notifications)
+                    date_logs.append({
+                        'timestamp': readable_time,
+                        'notifications': parsed_notifications
+                    })
             
             # Sort logs by timestamp (newest first)
             date_logs.sort(key=lambda x: x['timestamp'], reverse=True)
-            if date_logs:  # Only add to notifications_data if there are logs
+            if date_logs:
                 notifications_data[selected_date] = date_logs
 
     context = {
