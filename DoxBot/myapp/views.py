@@ -36,7 +36,12 @@ RECIPIENT_EMAILS = [
 ]
 
 def homepage(request):
-    return render(request, 'homepage.html')
+    current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+    params = {
+        'current_date': current_date,
+    }
+
+    return render(request, 'homepage.html', params)
 
 def app_usage_monitoring(request):
     if request.method == 'POST':
