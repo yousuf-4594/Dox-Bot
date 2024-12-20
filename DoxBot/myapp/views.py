@@ -136,6 +136,57 @@ def view_notifications(request):
 
     return render(request, 'notifications.html', context)
 
+def view_analytics(request):
+    # Get all collections (devices)
+    collections = db.collections()
+    collection_names = [
+        collection.id for collection in collections 
+        if collection.id not in ['analytics', 'monitoring']
+    ]
+
+    # Initialize variables
+    analytics_data = {}
+    selected_device = None
+    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')  # Default to today
+
+    if request.method == 'POST':
+        selected_device = request.POST.get('device')
+        posted_date = request.POST.get('date')
+        if posted_date:
+            selected_date = posted_date
+
+        if selected_device:
+            # Access the analytics collection for the selected device and date
+            analytics_ref = db.collection(selected_device).document('analytics').collection(selected_date)
+            analytics_logs = []
+            
+            # Get all documents (timestamps) for that date
+            timestamp_docs = analytics_ref.stream()
+            
+            for doc in timestamp_docs:
+                log_data = doc.to_dict()
+                readable_time = convert_to_pakistan_time(doc.id)
+                
+                analytics_logs.append({
+                    'timestamp': readable_time,
+                    'data': log_data
+                })
+            
+            # Sort logs by timestamp (newest first)
+            # analytics_logs.sort(key=lambda x: x['timestamp'], reverse=True)
+            if analytics_logs:
+                analytics_data[selected_date] = analytics_logs
+
+    context = {
+        'collection_names': collection_names,
+        'analytics_data': analytics_data,
+        'selected_device': selected_device,
+        'selected_date': selected_date
+    }
+
+    return render(request, 'logs.html', context)
+
+
 
 def app_usage_monitoring(request):
     if request.method == 'POST':

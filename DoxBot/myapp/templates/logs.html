@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Analytics</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 100px;
+        }
+
+        h2 {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-control {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .date-header {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .log-entry {
+            border: 1px solid #e0e0e0;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: white;
+        }
+
+        .timestamp {
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .analytics-data {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+
+        .alert-info {
+            background-color: #cce5ff;
+            border: 1px solid #b8daff;
+            color: #004085;
+        }
+
+        .logs-container {
+            margin-left: 20px;
+        }
+
+        .mb-4 {
+            margin-bottom: 1.5rem;
+        }
+
+        .mt-4 {
+            margin-top: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container">
+        <h2>Device Logs Viewer</h2>
+    
+        <form method="POST" class="mb-4">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="device">Select Device:</label>
+                <select name="device" id="device" class="form-control" required>
+                    <option value="" {% if not selected_device %}selected{% endif %}>-- Select Device --</option>
+                    {% for device in collection_names %}
+                        <option value="{{ device }}" {% if device == selected_device %}selected{% endif %}>
+                            {{ device }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="date">Select Date:</label>
+                <input type="date" name="date" id="date" class="form-control" 
+                       value="{{ selected_date }}" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary">View Analytics</button>
+        </form>
+
+        {% if analytics_data %}
+            {% for date, logs in analytics_data.items %}
+                <div class="date-header">
+                    <h3>Analytics for {{ date }}</h3>
+                </div>
+                <div class="logs-container">
+                    {% for log in logs %}
+                        <div class="log-entry">
+                            <div class="timestamp">🕒 {{ log.timestamp }}</div>
+                            <div class="analytics-data">{{ log.data|pprint }}</div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        {% elif selected_device %}
+            <div class="alert alert-info">
+                No analytics data found for the selected date and device.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
