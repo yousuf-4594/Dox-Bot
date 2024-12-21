@@ -11,5 +11,6 @@ urlpatterns = [
     path('activity/', app_usage_monitoring, name='activity'),
     path('join/', join, name='join'),
     path('notifications/', view_notifications, name='notifications'),
+    path('<str:device_id>/', device_details, name='device_details'),
 
 ]

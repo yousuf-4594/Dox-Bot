@@ -36,6 +36,55 @@ RECIPIENT_EMAILS = [
     "hibbanahmed0@gmail.com",
 ]
 
+
+from django.http import JsonResponse
+
+def device_details(request, device_id):
+    try:
+        logs_data = []
+        
+        # Get the system_logs document reference
+        system_logs_ref = db.collection(device_id).document('system_logs')
+        
+        # Get all date collections
+        date_collections = system_logs_ref.collections()
+        
+        # Iterate through each date collection
+        for date_collection in date_collections:
+            # Get all documents (timestamps) for this date
+            timestamp_docs = date_collection.stream()
+            
+            for doc in timestamp_docs:
+                log_data = doc.to_dict()
+                
+                # Convert timestamp (document ID) to readable format
+                readable_time = convert_to_pakistan_time(doc.id)
+                
+                # Process each log entry
+                if 'log' in log_data:
+                    log_entry = {
+                        'timestamp': readable_time,
+                        'date': date_collection.id,  # Include the date from collection ID
+                        'type': log_data.get('type', 'info'),  # Default to 'info' if type not specified
+                        'status': log_data.get('status', 'normal'),  # Default to 'normal' if status not specified
+                        'log_data': log_data['log']
+                    }
+                    logs_data.append(log_entry)
+        
+        # Sort logs by timestamp (newest first)
+        logs_data.sort(key=lambda x: x['timestamp'], reverse=True)
+        
+        return JsonResponse({
+            'device_id': device_id,
+            'logs': logs_data
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'error': f'Error fetching logs: {str(e)}',
+            'device_id': device_id
+        }, status=500)
+
 def convert_to_pakistan_time(timestamp):
     print(timestamp)
     timestamp_ms = int(timestamp)

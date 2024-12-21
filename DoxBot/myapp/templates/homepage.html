@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Homepage</title>
+    <title>Dox Bot</title>
     <style>
         .container {
             max-width: 900px;
@@ -14,11 +14,13 @@
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
             margin-top: 100px;
         }
+        
         h1 {
             color: #333;
         }
+        
         .device-list {
-            list-style:none;
+            list-style: none;
             padding: 0;
             margin-top: 30px;
         }
@@ -31,11 +33,92 @@
             padding: 15px;
             border-top: 1px solid #e0e0e0;
             border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .device-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .close-button {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-button:hover {
+            color: #333;
+        }
+
+        .modal-header {
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .device-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .detail-item {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
         }
     </style>
 </head>
 <body>
     {% include 'navbar.html' %}
+    
     <!-- Main Content -->
     <div class="container">
         <div>
@@ -44,7 +127,7 @@
         </div>
         <ul class="device-list">
             {% for device, info in devices.items %}
-            <li class="device-item">
+            <li class="device-item" data-device-id="{{ device }}">
                 <span style="font-weight: bolder;">{{ info.device_name }}</span>
                 <div>
                     <span>{{ info.last_seen }}</span>
@@ -53,7 +136,111 @@
             </li>
             {% endfor %}
         </ul>
-        
     </div>
+
+    <!-- Modal Dialog -->
+    <div id="deviceModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <div class="modal-header">
+                <h3 id="modalDeviceName">Device Logs</h3>
+            </div>
+            <div class="modal-body">
+                <div id="loadingIndicator" class="loading" style="display: none;">
+                    Loading device logs...
+                </div>
+                <div id="deviceLogs">
+                    <!-- Logs will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const modal = document.getElementById('deviceModal');
+            const closeButton = document.querySelector('.close-button');
+            const deviceItems = document.querySelectorAll('.device-item');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const deviceLogs = document.getElementById('deviceLogs');
+            const modalDeviceName = document.getElementById('modalDeviceName');
+
+            function getStatusClass(status) {
+                switch(status.toLowerCase()) {
+                    case 'success':
+                        return 'status-success';
+                    case 'error':
+                        return 'status-error';
+                    case 'warning':
+                        return 'status-warning';
+                    default:
+                        return '';
+                }
+            }
+
+            // Format log data nicely
+            function formatLogData(data) {
+                if (typeof data === 'object') {
+                    return JSON.stringify(data, null, 2);
+                }
+                return data;
+            }
+
+            deviceItems.forEach(item => {
+                item.addEventListener('click', async function() {
+                    const deviceId = this.dataset.deviceId;
+                    const deviceName = this.querySelector('span').textContent;
+                    
+                    modal.style.display = 'block';
+                    modalDeviceName.textContent = `Logs for ${deviceName}`;
+                    loadingIndicator.style.display = 'block';
+                    deviceLogs.style.display = 'none';
+
+                    try {
+                        const response = await fetch(`${deviceId}/`);
+                        if (!response.ok) throw new Error('Failed to fetch device logs');
+                        
+                        const data = await response.json();
+                        
+                        // Create HTML for logs
+                        deviceLogs.innerHTML = data.logs
+                            .map(log => `
+                                <div class="log-entry">
+                                    <div class="log-timestamp">
+                                        ${log.timestamp}
+                                        <span class="log-status ${getStatusClass(log.status)}">${log.status}</span>
+                                        <span class="log-type">${log.type}</span>
+                                    </div>
+                                    <div class="log-data">${formatLogData(log.log_data)}</div>
+                                </div>
+                            `)
+                            .join('');
+
+                        loadingIndicator.style.display = 'none';
+                        deviceLogs.style.display = 'block';
+                    } catch (error) {
+                        deviceLogs.innerHTML = `
+                            <div class="log-entry" style="color: red;">
+                                Error loading device logs. Please try again.
+                            </div>
+                        `;
+                        loadingIndicator.style.display = 'none';
+                        deviceLogs.style.display = 'block';
+                    }
+                });
+            });
+
+            // Close modal handlers
+            closeButton.addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
 </body>
 </html>
