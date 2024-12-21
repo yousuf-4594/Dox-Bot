@@ -193,34 +193,50 @@ def join(request):
     return FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='static-app.apk')
 
 def app_usage_monitoring(request):
+    # Get all collections (devices)
+    collections = db.collections()
+    collection_names = [
+        collection.id for collection in collections 
+        if collection.id not in ['analytics', 'monitoring']
+    ]
+    
     if request.method == 'POST':
+        selected_device = request.POST.get('device')
         selected_date = request.POST.get('date')
         formatted_date = datetime.datetime.strptime(selected_date, '%Y-%m-%d').strftime('%Y-%m-%d')
 
-        doc_ref = db.collection('monitoring').document(formatted_date)
-        doc = doc_ref.get()
+        # Get the monitoring document's collection for the selected date
+        monitoring_ref = db.collection(selected_device).document('monitoring').collection(formatted_date)
+        docs = monitoring_ref.stream()
 
-        if doc.exists:
-            content = doc.to_dict()
-            app_list = []
-            launch_time_list = []
-            close_time_list = []
-            duration_list = []
+        app_list = []
+        launch_time_list = []
+        close_time_list = []
+        duration_list = []
 
-            for timestamp, json_string in content.items():
-                if isinstance(json_string, str):
-                    json_objects = json_string.strip().split('\n')
-                    for obj in json_objects:
-                        try:
-                            app_data = json.loads(obj)
-                            app_list.append(app_data['App'])
-                            launch_time_list.append(app_data['Launch Time'])
-                            close_time_list.append(app_data['Close Time'])
-                            duration_list.append(app_data['Duration'])
-                        except json.JSONDecodeError as e:
-                            print(f"Error decoding JSON: {e}")
-                            continue
+        # Iterate through all timestamp documents in the collection
+        for doc in docs:
+            try:
+                log_data = doc.to_dict()
+                if log_data:  # Check if document has data
+                    for log_entry in log_data.values():  # Iterate through all logs in the document
+                        if isinstance(log_entry, str):
+                            json_objects = log_entry.strip().split('\n')
+                            for obj in json_objects:
+                                try:
+                                    app_data = json.loads(obj)
+                                    app_list.append(app_data['App'])
+                                    launch_time_list.append(app_data['Launch Time'])
+                                    close_time_list.append(app_data['Close Time'])
+                                    duration_list.append(app_data['Duration'])
+                                except json.JSONDecodeError as e:
+                                    print(f"Error decoding JSON: {e}")
+                                    continue
+            except Exception as e:
+                print(f"Error processing document {doc.id}: {e}")
+                continue
 
+        if app_list:  # Only process if we have data
             df = pd.DataFrame({
                 'App': app_list,
                 'Launch Time': launch_time_list,
@@ -230,22 +246,32 @@ def app_usage_monitoring(request):
 
             df['Launch Time ms'] = pd.to_datetime(df['Launch Time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Karachi').dt.strftime('%Y-%m-%d %I:%M:%S %p')
             df['Close Time ms'] = pd.to_datetime(df['Close Time'], unit='ms').dt.tz_localize('UTC').dt.tz_convert('Asia/Karachi').dt.strftime('%Y-%m-%d %I:%M:%S %p')
-
             df['Duration_minutes'] = df['Duration'] / (1000 * 60)
 
             duration_per_app = df.groupby('App')['Duration_minutes'].sum().reset_index()
-            duration_per_app = duration_per_app.sort_values(by='Duration_minutes')
+            duration_per_app = duration_per_app.sort_values(by='Duration_minutes', ascending=False)
+            duration_per_app['Duration_minutes'] = duration_per_app['Duration_minutes'].round(2)
 
-            # Convert the DataFrame to a list of dictionaries
             duration_per_app_list = duration_per_app.to_dict(orient='records')
 
-            # Render the data in the template
-            return render(request, 'app_usage_monitoring.html', {'duration_per_app': duration_per_app_list, 'selected_date': selected_date})
-
+            return render(request, 'app_usage_monitoring.html', {
+                'duration_per_app': duration_per_app_list,
+                'selected_date': selected_date,
+                'selected_device': selected_device,
+                'collection_names': collection_names
+            })
         else:
-            print('No document found for the selected date.')
+            return render(request, 'app_usage_monitoring.html', {
+                'error_message': f'No data found for {selected_device} on {selected_date}',
+                'selected_date': selected_date,
+                'selected_device': selected_device,
+                'collection_names': collection_names
+            })
 
-    return render(request, 'app_usage_monitoring.html')
+    # Default rendering for GET request
+    return render(request, 'app_usage_monitoring.html', {
+        'collection_names': collection_names
+    })
 
 
 
