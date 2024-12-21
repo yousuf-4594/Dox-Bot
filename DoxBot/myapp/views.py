@@ -33,7 +33,7 @@ db = firestore.client()
 
 RECIPIENT_EMAILS = [
     "cysiddiqui@gmail.com",
-    "hibbanahmed0@gmail.com",
+    # "hibbanahmed0@gmail.com",
 ]
 
 
@@ -326,59 +326,62 @@ def app_usage_monitoring(request):
 
 def check_firebase_and_send_email(request):
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
-
-    # Fetch the document for today
-    doc_ref = db.collection('analytics').document(today_date)
-    doc = doc_ref.get()
-
     detected_words = []
+    processed_any = False
+    device_id = 'samsung_sm-g965u1'
 
-    if doc.exists:
-        content = doc.to_dict()
-        new_maps = {}
-        print('Document Found')
-
-        # Process each field in the document
-        for map_name, map_value in content.items():
-            # Check if the map has a 'processed' flag and if it's set to True
-            if isinstance(map_value, dict) and map_value.get('processed', False):
-                # Skip processing if the map has already been processed
-                print(f'{map_name} already processed')
+    try:
+        # Get specific device collection
+        device_collection = db.collection(device_id)
+        
+        # Get analytics document and today's collection
+        analytics_ref = device_collection.document('analytics')
+        today_logs_ref = analytics_ref.collection(today_date)
+        
+        # Get all unprocessed logs for today
+        logs = today_logs_ref.stream()
+        
+        for log_doc in logs:
+            log_data = log_doc.to_dict()
+            
+            # Skip if already processed
+            if log_data.get('processed', False):
                 continue
             
-            # Process the map
-            new_maps[map_name] = map_value
+            # Process the log content
+            log_content = log_data.get('log', '')
+            package_name = log_data.get('package_name', '')
             
-            # Ensure map_value is a string
-            if isinstance(map_value, dict) or isinstance(map_value, list):
-                map_value_str = str(map_value)
-            else:
-                map_value_str = map_value
-
-            # Tokenize the map_value_str using regular expressions
-            map_value_words = re.findall(r'\b\w+\b', map_value_str)
-
-            # Find specific words present in the map_value_words
-            detected_words += [word for word in SPECIFIC_WORDS if word in map_value_words]
-
-            if detected_words:
-                print(f'Specific Word(s) Found in {map_name}: {", ".join(detected_words)}')
+            # Ensure log_content is a string
+            if not isinstance(log_content, str):
+                log_content = str(log_content)
+            
+            # Tokenize the log content
+            log_words = re.findall(r'\b\w+\b', log_content.lower())
+            
+            # Find specific words present in the log
+            found_words = [word for word in SPECIFIC_WORDS if word.lower() in log_words]
+            
+            if found_words:
+                detected_words.extend(found_words)
+                processed_any = True
                 
-                # Construct the email body with detected words
-                detected_words_str = ', '.join(detected_words)
+                # Construct email content
+                detected_words_str = ', '.join(set(found_words))  # Remove duplicates
                 sender_email = settings.DEFAULT_FROM_EMAIL
                 recipient_emails = RECIPIENT_EMAILS
-                subject = "Alarming Activity Detected on Your Mobile Device (itel-S661LP)"
+                subject = f"Alarming Activity Detected on Your Mobile Device ({device_id})"
                 body = f"""
                 <html>
                 <body>
-                    <h2>Concerning Activity Detected on Your Mobile Device (itel-S661LP)</h2>
-                    <p>We have identified concerning activity on your mobile device (itel-S661LP) within the past hour. Specifically, the device has been detected accessing inappropriate content.</p>
-                    <h3>Detected Words:</h3>
-                    <p>{detected_words_str}</p>
+                    <h2>Concerning Activity Detected on Your Mobile Device ({device_id})</h2>
+                    <p>We have identified concerning activity on your mobile device within the past 15 minutes.</p>
+                    <h3>Details:</h3>
+                    <p><strong>Application:</strong> {package_name}</p>
+                    <p><strong>Detected Words:</strong> {detected_words_str}</p>
                     <h3>As a reminder of our values:</h3>
                     <blockquote style="background-color: #f9f9f9; border-left: 10px solid #ccc; padding: 10px;">
-                        <p><em>“The adultery of the eye is the lustful look.”</em> (Sahih Muslim, 2658a)</p>
+                        <p><em>"The adultery of the eye is the lustful look."</em> (Sahih Muslim, 2658a)</p>
                         <p><em>"And come not near adultery, for it is a shameful deed and an evil, opening the road to other evils."</em> (Qur'an, 17:32)</p>
                         <p><em>"A man came to the Prophet (peace be upon him) and said: 'O Messenger of Allah, I have a friend who says that he believes in some parts of the Quran and disbelieves in others.' The Prophet replied: 'Tell him he is a disbeliever.'"</em> (Musnad Ahmad)</p>
                         <p><em>"When the disbeliever sees his place in Hell, he will wish that he had never been created."</em> (Sahih al-Bukhari)</p>
@@ -389,35 +392,46 @@ def check_firebase_and_send_email(request):
                 </html>
                 """
 
-                # Create the email message
+                # Create and send email
                 email = EmailMessage(
                     subject,
                     body,
                     sender_email,
-                    recipient_emails  # List of recipient emails
+                    recipient_emails
                 )
                 email.content_subtype = 'html'
+                
+                # Attach warning image
                 with open('Asset/warning.png', 'rb') as img:
                     img_data = img.read()
                     image = MIMEImage(img_data, name='warning.png')
-                    image.add_header('Content-ID', '<image1>')  # Referenced in the HTML content
+                    image.add_header('Content-ID', '<image1>')
                     email.attach(image)
 
                 email.send(fail_silently=False)
-                print('Email Sent successfully')
+                print(f'Email sent for device {device_id}')
+            
+            # Mark the document as processed
+            log_doc.reference.update({
+                'processed': True,
+                'processed_at': firestore.SERVER_TIMESTAMP
+            })
 
-            # After processing, update the map with the 'processed' flag
-            new_maps[map_name] = {'value': map_value, 'processed': True}
+        # Render the response
+        context = {
+            'detected_words': ', '.join(set(detected_words)) if detected_words else 'No specific words detected.',
+            'processed_any': processed_any
+        }
+        return render(request, 'check_complete.html', context)
 
-        # Update the document in Firestore with the processed flags
-        if new_maps:
-            doc_ref.update(new_maps)
-
-    # Render the response with the template
-    context = {
-        'detected_words': ', '.join(detected_words) if detected_words else 'No specific words detected.'
-    }
-    return render(request, 'check_complete.html', context)
+    except Exception as e:
+        logging.error(f"Error in check_firebase_and_send_email: {str(e)}")
+        context = {
+            'error': f"An error occurred: {str(e)}",
+            'detected_words': ', '.join(set(detected_words)) if detected_words else 'No specific words detected.',
+            'processed_any': processed_any
+        }
+        return render(request, 'audit.html', context)
 
 def check_date(request):
     today_date = datetime.datetime.now().strftime('%Y-%m-%d')
