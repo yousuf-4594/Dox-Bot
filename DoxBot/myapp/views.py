@@ -43,35 +43,27 @@ def device_details(request, device_id):
     try:
         logs_data = []
         
-        # Get the system_logs document reference
         system_logs_ref = db.collection(device_id).document('system_logs')
         
-        # Get all date collections
         date_collections = system_logs_ref.collections()
         
-        # Iterate through each date collection
         for date_collection in date_collections:
-            # Get all documents (timestamps) for this date
             timestamp_docs = date_collection.stream()
             
             for doc in timestamp_docs:
-                log_data = doc.to_dict()
-                
-                # Convert timestamp (document ID) to readable format
+                log_data = doc.to_dict()                
                 readable_time = convert_to_pakistan_time(doc.id)
                 
-                # Process each log entry
                 if 'log' in log_data:
                     log_entry = {
                         'timestamp': readable_time,
-                        'date': date_collection.id,  # Include the date from collection ID
-                        'type': log_data.get('type', 'info'),  # Default to 'info' if type not specified
-                        'status': log_data.get('status', 'normal'),  # Default to 'normal' if status not specified
+                        'date': date_collection.id,
+                        'type': log_data.get('type', 'info'),
+                        'status': log_data.get('status', 'normal'),
                         'log_data': log_data['log']
                     }
                     logs_data.append(log_entry)
         
-        # Sort logs by timestamp (newest first)
         logs_data.sort(key=lambda x: x['timestamp'], reverse=True)
         
         return JsonResponse({
@@ -120,7 +112,6 @@ def homepage(request):
     return render(request, 'homepage.html', params)
 
 def parse_notification_log(log_string):
-    """Parse the notification log string into structured data."""
     pattern = r'\(([\d\-: ]+)\|NOTIFICATION\) Package: ([^\s]+) Title: ([\s\S]*?) Text: ([\s\S]*?)(?=\([\d\-: ]+\|NOTIFICATION\)|$)'
     notifications = []
     
@@ -145,7 +136,7 @@ def view_notifications(request):
 
     notifications_data = {}
     selected_collection = None
-    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')  # Default to today
+    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')
 
     if request.method == 'POST':
         selected_collection = request.POST.get('collection')
@@ -163,7 +154,6 @@ def view_notifications(request):
                 readable_time = convert_to_pakistan_time(doc.id)
                 print(log_data['log'])
                 
-                # Parse the log string into structured data
                 if 'log' in log_data:
                     parsed_notifications = parse_notification_log(log_data['log'])
                     print(parsed_notifications)
@@ -172,7 +162,6 @@ def view_notifications(request):
                         'notifications': parsed_notifications
                     })
             
-            # Sort logs by timestamp (newest first)
             date_logs.sort(key=lambda x: x['timestamp'], reverse=True)
             if date_logs:
                 notifications_data[selected_date] = date_logs
@@ -187,17 +176,15 @@ def view_notifications(request):
     return render(request, 'notifications.html', context)
 
 def view_analytics(request):
-    # Get all collections (devices)
     collections = db.collections()
     collection_names = [
         collection.id for collection in collections 
         if collection.id not in ['analytics', 'monitoring']
     ]
 
-    # Initialize variables
     analytics_data = {}
     selected_device = None
-    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')  # Default to today
+    selected_date = datetime.datetime.now().strftime('%Y-%m-%d')
 
     if request.method == 'POST':
         selected_device = request.POST.get('device')
@@ -206,11 +193,9 @@ def view_analytics(request):
             selected_date = posted_date
 
         if selected_device:
-            # Access the analytics collection for the selected device and date
             analytics_ref = db.collection(selected_device).document('analytics').collection(selected_date)
             analytics_logs = []
             
-            # Get all documents (timestamps) for that date
             timestamp_docs = analytics_ref.stream()
             
             for doc in timestamp_docs:
@@ -222,8 +207,6 @@ def view_analytics(request):
                     'data': log_data
                 })
             
-            # Sort logs by timestamp (newest first)
-            # analytics_logs.sort(key=lambda x: x['timestamp'], reverse=True)
             if analytics_logs:
                 analytics_data[selected_date] = analytics_logs
 
@@ -242,7 +225,6 @@ def join(request):
     return FileResponse(open(apk_path, 'rb'), as_attachment=True, filename='static-app.apk')
 
 def app_usage_monitoring(request):
-    # Get all collections (devices)
     collections = db.collections()
     collection_names = [
         collection.id for collection in collections 
@@ -254,7 +236,6 @@ def app_usage_monitoring(request):
         selected_date = request.POST.get('date')
         formatted_date = datetime.datetime.strptime(selected_date, '%Y-%m-%d').strftime('%Y-%m-%d')
 
-        # Get the monitoring document's collection for the selected date
         monitoring_ref = db.collection(selected_device).document('monitoring').collection(formatted_date)
         docs = monitoring_ref.stream()
 
@@ -263,12 +244,11 @@ def app_usage_monitoring(request):
         close_time_list = []
         duration_list = []
 
-        # Iterate through all timestamp documents in the collection
         for doc in docs:
             try:
                 log_data = doc.to_dict()
-                if log_data:  # Check if document has data
-                    for log_entry in log_data.values():  # Iterate through all logs in the document
+                if log_data:
+                    for log_entry in log_data.values():
                         if isinstance(log_entry, str):
                             json_objects = log_entry.strip().split('\n')
                             for obj in json_objects:
@@ -285,7 +265,7 @@ def app_usage_monitoring(request):
                 print(f"Error processing document {doc.id}: {e}")
                 continue
 
-        if app_list:  # Only process if we have data
+        if app_list:
             df = pd.DataFrame({
                 'App': app_list,
                 'Launch Time': launch_time_list,
@@ -317,7 +297,6 @@ def app_usage_monitoring(request):
                 'collection_names': collection_names
             })
 
-    # Default rendering for GET request
     return render(request, 'app_usage_monitoring.html', {
         'collection_names': collection_names
     })
@@ -331,43 +310,31 @@ def check_firebase_and_send_email(request):
     device_id = 'samsung_sm-g965u1'
 
     try:
-        # Get specific device collection
         device_collection = db.collection(device_id)
-        
-        # Get analytics document and today's collection
         analytics_ref = device_collection.document('analytics')
         today_logs_ref = analytics_ref.collection(today_date)
-        
-        # Get all unprocessed logs for today
         logs = today_logs_ref.stream()
         
         for log_doc in logs:
             log_data = log_doc.to_dict()
-            
-            # Skip if already processed
             if log_data.get('processed', False):
                 continue
             
-            # Process the log content
             log_content = log_data.get('log', '')
             package_name = log_data.get('package_name', '')
             
-            # Ensure log_content is a string
             if not isinstance(log_content, str):
                 log_content = str(log_content)
             
-            # Tokenize the log content
             log_words = re.findall(r'\b\w+\b', log_content.lower())
             
-            # Find specific words present in the log
             found_words = [word for word in SPECIFIC_WORDS if word.lower() in log_words]
             
             if found_words:
                 detected_words.extend(found_words)
                 processed_any = True
                 
-                # Construct email content
-                detected_words_str = ', '.join(set(found_words))  # Remove duplicates
+                detected_words_str = ', '.join(set(found_words))
                 sender_email = settings.DEFAULT_FROM_EMAIL
                 recipient_emails = RECIPIENT_EMAILS
                 subject = f"Alarming Activity Detected on Your Mobile Device ({device_id})"
@@ -392,7 +359,6 @@ def check_firebase_and_send_email(request):
                 </html>
                 """
 
-                # Create and send email
                 email = EmailMessage(
                     subject,
                     body,
@@ -401,7 +367,6 @@ def check_firebase_and_send_email(request):
                 )
                 email.content_subtype = 'html'
                 
-                # Attach warning image
                 with open('Asset/warning.png', 'rb') as img:
                     img_data = img.read()
                     image = MIMEImage(img_data, name='warning.png')
@@ -411,18 +376,16 @@ def check_firebase_and_send_email(request):
                 email.send(fail_silently=False)
                 print(f'Email sent for device {device_id}')
             
-            # Mark the document as processed
             log_doc.reference.update({
                 'processed': True,
                 'processed_at': firestore.SERVER_TIMESTAMP
             })
 
-        # Render the response
         context = {
             'detected_words': ', '.join(set(detected_words)) if detected_words else 'No specific words detected.',
             'processed_any': processed_any
         }
-        return render(request, 'check_complete.html', context)
+        return render(request, 'audit.html', context)
 
     except Exception as e:
         logging.error(f"Error in check_firebase_and_send_email: {str(e)}")
